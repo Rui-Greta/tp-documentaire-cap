@@ -271,7 +271,7 @@
   /* ---------- pages ---------- */
   function header(sub) {
     return h("header", { class: "top" }, [
-      h("a", { href: "#/", class: "brand", "aria-label": "Accueil du TP" }, [h("img", { src: "assets/logo_greta.png", alt: "GRETA GIP FIPAN" })]),
+      h("a", { href: "#/", class: "brand", "aria-label": "Accueil du TP" }, [h("img", { src: "logo_greta.png", alt: "GRETA GIP FIPAN" })]),
       h("div", { class: "toptxt" }, [h("strong", null, ["CAP Électricien"]), h("span", null, [sub || D.sousTitre])])
     ]);
   }
