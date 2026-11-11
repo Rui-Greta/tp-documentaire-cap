@@ -3,6 +3,7 @@
   "use strict";
   var D = window.TPDOC;
   var KEY = "tpdoc:" + D.id;
+  var RESET_HASH = 1602609493; /* empreinte du code formateur (le code lui-même n'est pas écrit ici) */
   var app = document.getElementById("app");
 
   /* ---------- sauvegarde ---------- */
@@ -46,6 +47,17 @@
         var s = Math.round((12 + r() * 26) * 10) / 10, n = Math.max(5, Math.ceil(s / 4 - 1e-9));
         out.push({ q: "Séjour de " + fr(s) + " m² : combien de socles 16 A au minimum ?", answer: n, tol: 0, unit: "socles",
           explain: "1 socle par tranche de 4 m², minimum 5 : " + fr(s) + " / 4 = " + fr(s / 4) + " → " + n + " socles" });
+      } else if (ex.gen === "vav") {
+        var used = k ? out.map(function (o) { return o.st; }) : [], st;
+        do { st = Math.floor(r() * 4); } while (used.indexOf(st) >= 0 && used.length < 4);
+        var p1 = st >> 1 ? 2 : 1, p2 = st & 1 ? 2 : 1, on = p1 === p2;
+        out.push({ qcm: true, st: st, q: "S1 est sur la navette " + p1 + ", S2 sur la navette " + p2 + ". La lampe est…", options: ["allumée", "éteinte"], answer: on ? 0 : 1,
+          explain: on ? "Les deux inverseurs sont sur la même navette : le circuit est fermé." : "Les inverseurs ne sont pas sur la même navette : le circuit est ouvert." });
+      } else if (ex.gen === "tl") {
+        var init = r() < 0.5, nb = 1 + Math.floor(r() * 7), fin = nb % 2 ? !init : init;
+        if (k > 0 && out[0].fin === fin) { nb++; fin = !fin; }
+        out.push({ qcm: true, fin: fin, q: "La lampe est " + (init ? "allumée" : "éteinte") + ". On appuie " + nb + " fois de suite sur les BP (n'importe lesquels). La lampe est…", options: ["allumée", "éteinte"], answer: fin ? 0 : 1,
+          explain: "Chaque impulsion change l'état : " + nb + " impulsion" + (nb > 1 ? "s" : "") + (nb % 2 ? " (nombre impair) → l'état change." : " (nombre pair) → retour à l'état de départ.") });
       } else if (ex.gen === "idcal") {
         var C, CE, oth, I, tries = 0;
         do {
@@ -104,7 +116,7 @@
     card.appendChild(head);
     if (ex.research) card.appendChild(h("p", { class: "research" }, [ex.research]));
     if (ex.q) card.appendChild(h("h3", { id: "q-" + key }, [ex.q]));
-    if (ex.img) card.appendChild(h("img", { class: "schema", src: ex.img, alt: "Schéma multifilaire du simple allumage" }));
+    if (ex.img) card.appendChild(h("img", { class: "schema", src: ex.img, alt: ex.alt || "Schéma multifilaire du simple allumage" }));
     var val = st.val != null ? st.val : null;
     var body = h("div", { class: "exbody" });
     card.appendChild(body);
@@ -271,7 +283,7 @@
   /* ---------- pages ---------- */
   function header(sub) {
     return h("header", { class: "top" }, [
-      h("a", { href: "#/", class: "brand", "aria-label": "Accueil du TP" }, [h("img", { src: "logo_greta.png", alt: "GRETA GIP FIPAN" })]),
+      h("a", { href: "#/", class: "brand", "aria-label": "Accueil du TP" }, [h("img", { src: D.logo || "logo_greta.png", alt: "GRETA GIP FIPAN" })]),
       h("div", { class: "toptxt" }, [h("strong", null, ["CAP Électricien"]), h("span", null, [sub || D.sousTitre])])
     ]);
   }
@@ -281,7 +293,7 @@
     var main = h("main", { class: "wrap" });
     main.appendChild(h("div", { class: "hero" }, [
       h("p", { class: "eyebrow" }, [D.sousTitre]), h("h1", null, [D.titre]),
-      h("p", { class: "lead" }, ["Travail en autonomie · durée conseillée " + D.duree + ". Tu utilises la présentation du cours, les guides NF C 15-100 (sur le PC) et ton téléphone."])
+      h("p", { class: "lead" }, ["Travail en autonomie · durée conseillée " + D.duree + ". " + (D.lead || "Tu utilises la présentation du cours, les guides NF C 15-100 (sur le PC) et ton téléphone.")])
     ]));
     var nameIn = h("input", { type: "text", id: "nm", value: S.name, autocomplete: "name", placeholder: "Prénom Nom", oninput: function () { S.name = nameIn.value; save(); } });
     main.appendChild(h("section", { class: "card" }, [h("label", { for: "nm", class: "lab" }, ["Ton prénom et ton nom"]), nameIn]));
@@ -375,16 +387,22 @@
     var acts = h("div", { class: "actions wrapbtn" }, [
       h("button", { type: "button", class: "primary", onclick: function () { window.print(); } }, ["Imprimer / PDF"]),
       h("button", { type: "button", onclick: function () { var t = bilanText(); if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { info.textContent = "Bilan copié : colle-le dans un mail ou un message."; }); } }, ["Copier le bilan"]),
-      h("button", { type: "button", onclick: function () { var b = new Blob([bilanText()], { type: "text/plain;charset=utf-8" }); var a = h("a", { href: URL.createObjectURL(b), download: "bilan_TP_documentaire_" + (S.name || "eleve").replace(/\s+/g, "_") + ".txt" }); document.body.appendChild(a); a.click(); a.remove(); } }, ["Télécharger (.txt)"]),
+      h("button", { type: "button", onclick: function () { var b = new Blob([bilanText()], { type: "text/plain;charset=utf-8" }); var a = h("a", { href: URL.createObjectURL(b), download: "bilan_TP_documentaire_" + (D.num || 1) + "_" + (S.name || "eleve").replace(/\s+/g, "_") + ".txt" }); document.body.appendChild(a); a.click(); a.remove(); } }, ["Télécharger (.txt)"]),
       navigator.share ? h("button", { type: "button", onclick: function () { navigator.share({ title: "Bilan TP documentaire", text: bilanText() }).catch(function () {}); } }, ["Partager"]) : null,
       info]);
     main.appendChild(acts);
     main.appendChild(h("details", { class: "reset" }, [h("summary", null, ["Recommencer le TP (formateur)"]),
-      h("p", { class: "hint" }, ["Efface toutes les réponses enregistrées sur cet appareil."]),
-      h("button", { type: "button", class: "danger", onclick: function () { localStorage.removeItem(KEY); S = load(); save(); location.hash = "#/"; } }, ["Tout effacer"])]));
+      h("p", { class: "hint" }, ["Efface toutes les réponses enregistrées sur cet appareil. Code formateur obligatoire."]),
+      h("div", { class: "actions wrapbtn" }, [
+        h("input", { type: "password", id: "rcode", autocomplete: "off", placeholder: "Code formateur", "aria-label": "Code formateur", style: "max-width:220px" }),
+        h("button", { type: "button", class: "danger", onclick: function () {
+          var c = document.getElementById("rcode"), msg = document.getElementById("rmsg");
+          if (hash(String(c.value).trim().toUpperCase()) !== RESET_HASH) { msg.textContent = "Code incorrect : demande à ton formateur."; c.value = ""; c.focus(); return; }
+          localStorage.removeItem(KEY); S = load(); save(); location.hash = "#/"; } }, ["Tout effacer"]),
+        h("p", { class: "msg", id: "rmsg", role: "status", "aria-live": "polite" })])]));
     app.appendChild(main); app.appendChild(footer()); window.scrollTo(0, 0);
   }
-  function footer() { return h("footer", { class: "foot" }, ["GRETA GIP FIPAN — Académie de Nice · CAP Électricien · TP documentaire n°1"]); }
+  function footer() { return h("footer", { class: "foot" }, ["GRETA GIP FIPAN — Académie de Nice · CAP Électricien · TP documentaire n°" + (D.num || 1)]); }
 
   function route() {
     var r = (location.hash || "#/").slice(2);
