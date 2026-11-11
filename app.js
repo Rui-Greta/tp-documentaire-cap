@@ -409,7 +409,7 @@
       pct: mx ? Math.round(100 * tot / mx) : 0, complet: all, missions: ms, texte: bilanText(), appareil: String(S.seed), envoi: (S.sent || []).length + 1 };
   }
   function sendBilan(btn, out) {
-    if (!S.name) { out.className = "msg"; out.textContent = "Écris d'abord ton prénom et ton nom sur la page d'accueil."; return; }
+    if (!S.name) { out.className = "msg"; out.textContent = "Écris d'abord ton prénom et ton nom en haut de cette page."; return; }
     btn.disabled = true; out.className = "msg info"; out.textContent = "Envoi en cours…";
     var body = JSON.stringify(bilanData());
     var done, fail;
@@ -431,7 +431,11 @@
     app.appendChild(header("Bilan"));
     var main = h("main", { class: "wrap" });
     main.appendChild(h("div", { class: "hero" }, [h("p", { class: "eyebrow" }, [D.sousTitre]), h("h1", null, ["Mon bilan"]),
-      h("p", { class: "lead" }, [(S.name || "Pense à écrire ton nom sur la page d'accueil") + " · " + new Date().toLocaleDateString("fr-FR")])]));
+      h("p", { class: "lead" }, [new Date().toLocaleDateString("fr-FR")])]));
+    var bname = h("input", { type: "text", id: "bnm", value: S.name, autocomplete: "name", placeholder: "Prénom Nom", oninput: function () {
+      S.name = bname.value; save(); var pr = document.querySelector(".btxt"); if (pr) pr.textContent = bilanText(); } });
+    main.appendChild(h("section", { class: "card" + (S.name ? "" : " warnbox") }, [h("label", { for: "bnm", class: "lab" }, ["Ton prénom et ton nom"]), bname,
+      S.name ? null : h("p", { class: "hint warn" }, ["Écris ton nom avant d'envoyer ou d'imprimer ton bilan."])]));
     var tb = h("table", { class: "bt" }, [h("thead", null, [h("tr", null, [h("th", null, ["Mission"]), h("th", null, ["Exercices"]), h("th", null, ["Points"]), h("th", null, ["Réussite"])])])]);
     var tbody = h("tbody"), tot = 0, mx = 0, allDone = true;
     D.missions.forEach(function (m) {
@@ -454,6 +458,7 @@
     }
     var info = h("p", { class: "msg", role: "status", "aria-live": "polite" });
     var acts = h("div", { class: "actions wrapbtn" }, [
+      h("a", { href: "#/", class: "btn" }, ["← Accueil"]),
       h("button", { type: "button", class: SHEET_URL ? "" : "primary", onclick: function () { window.print(); } }, ["Imprimer / PDF"]),
       h("button", { type: "button", onclick: function () { var t = bilanText(); if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { info.textContent = "Bilan copié : colle-le dans un mail ou un message."; }); } }, ["Copier le bilan"]),
       h("button", { type: "button", onclick: function () { var b = new Blob([bilanText()], { type: "text/plain;charset=utf-8" }); var a = h("a", { href: URL.createObjectURL(b), download: "bilan_TP_documentaire_" + (D.num || 1) + "_" + (S.name || "eleve").replace(/\s+/g, "_") + ".txt" }); document.body.appendChild(a); a.click(); a.remove(); } }, ["Télécharger (.txt)"]),
