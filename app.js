@@ -58,6 +58,43 @@
         if (k > 0 && out[0].fin === fin) { nb++; fin = !fin; }
         out.push({ qcm: true, fin: fin, q: "La lampe est " + (init ? "allumée" : "éteinte") + ". On appuie " + nb + " fois de suite sur les BP (n'importe lesquels). La lampe est…", options: ["allumée", "éteinte"], answer: fin ? 0 : 1,
           explain: "Chaque impulsion change l'état : " + nb + " impulsion" + (nb > 1 ? "s" : "") + (nb % 2 ? " (nombre impair) → l'état change." : " (nombre pair) → retour à l'état de départ.") });
+      } else if (ex.gen === "ib" || ex.gen === "dim") {
+        var AP = [["Chauffe-eau", 2000], ["Chauffe-eau", 2400], ["Chauffe-eau", 3000], ["Circuit de radiateurs", 3000], ["Circuit de radiateurs", 3500],
+          ["Circuit de radiateurs", 4000], ["Circuit de radiateurs", 4500], ["Plaque de cuisson", 6000], ["Plaque de cuisson", 7200]];
+        var usedA = out.map(function (o) { return o.ai; }), ai;
+        do { ai = Math.floor(r() * AP.length); } while (usedA.indexOf(ai) >= 0);
+        var ap = AP[ai], ib = ap[1] / 230;
+        if (ex.gen === "ib") {
+          out.push({ ai: ai, q: ap[0] + " de " + ap[1].toLocaleString("fr-FR") + " W en 230 V (appareil résistif). Courant d'emploi Ib en ampères ?", answer: Math.round(ib * 10) / 10, tol: 0.15, unit: "A",
+            explain: "Ib = P / U = " + ap[1] + " / 230 = " + fr(Math.round(ib * 10) / 10) + " A" });
+        } else {
+          var di = ap[0] === "Plaque de cuisson" ? 2 : ap[0] === "Chauffe-eau" ? 1 : ap[1] <= 3500 ? 0 : 1;
+          out.push({ ai: ai, qcm: true, q: ap[0] + " de " + ap[1].toLocaleString("fr-FR") + " W. Disjoncteur et section ?", options: ["16 A – 1,5 mm²", "20 A – 2,5 mm²", "32 A – 6 mm²"], answer: di,
+            explain: "Ib = " + fr(Math.round(ib * 10) / 10) + " A → " + ["16 A – 1,5 mm²", "20 A – 2,5 mm²", "32 A – 6 mm²"][di] + (ap[0] === "Chauffe-eau" ? " (chauffe-eau : circuit dédié 20 A, 2,5 mm²)" : ap[0] === "Circuit de radiateurs" ? " (chauffage : 3 500 W en 1,5 mm² / 16 A, 4 500 W en 2,5 mm² / 20 A)" : "") });
+        }
+      } else if (ex.gen === "du") {
+        var kind = k % 2, L = 12 + Math.floor(r() * 27), S2, I2, lim, lab;
+        if (kind === 0) { S2 = 2.5; I2 = 16; lim = 5; lab = "Circuit de prises 2,5 mm², Ib = 16 A"; }
+        else { S2 = 1.5; I2 = [4, 5, 6][Math.floor(r() * 3)]; lim = 3; lab = "Circuit d'éclairage 1,5 mm², Ib = " + I2 + " A"; }
+        var du = 2 * 0.0225 * L * I2 / S2, pc = Math.round(1000 * du / 230) / 10;
+        out.push({ q: lab + ", longueur " + L + " m. Chute de tension ΔU en % ?", answer: pc, tol: 0.15, unit: "%",
+          explain: "ΔU = 2 × 0,0225 × " + L + " × " + I2 + " / " + fr(S2) + " = " + fr(Math.round(du * 100) / 100) + " V → " + fr(pc) + " % " + (pc <= lim ? "≤ " : "> ") + lim + " % : " + (pc <= lim ? "conforme" : "non conforme") });
+      } else if (ex.gen === "idnb") {
+        var bk = (k + Math.floor(r() * 3)) % 3, surf = bk === 0 ? 24 + Math.floor(r() * 11) : bk === 1 ? 40 + Math.floor(r() * 55) : 105 + Math.floor(r() * 50), nb = bk + 2;
+        out.push({ q: "Logement de " + surf + " m² : nombre minimal d'interrupteurs différentiels 30 mA ?", answer: nb, tol: 0, unit: "ID",
+          explain: surf <= 35 ? "≤ 35 m² : 1 ID 25 A type AC + 1 ID 40 A type A = 2" : surf <= 100 ? "35 à 100 m² : 2 ID 40 A type AC + 1 ID 40 A type A = 3" : "> 100 m² : 3 ID 40 A type AC + 1 ID 40 A type A = 4" });
+      } else if (ex.gen === "uc") {
+        var SENS = [[0.5, "500 mA (AGCP)"], [0.3, "300 mA"], [0.03, "30 mA"]], sv = SENS[k % 3], Rt = [35, 60, 80, 120, 150, 180, 220, 300][Math.floor(r() * 8)];
+        var Uc = Math.round(Rt * sv[0] * 10) / 10;
+        out.push({ q: "Terre de " + Rt + " Ω, différentiel " + sv[1] + ". Tension de contact U = R × IΔn, en volts ?", answer: Uc, tol: 0.15, unit: "V",
+          explain: Rt + " × " + fr(sv[0]) + " = " + fr(Uc) + " V " + (Uc <= 50 ? "≤ 50 V : protection assurée" : "> 50 V : protection insuffisante") });
+      } else if (ex.gen === "terre") {
+        var pool = [40, 65, 90, 100, 110, 140, 180, 250], usedT = out.map(function (o) { return o.R; }), Rr;
+        do { Rr = pool[Math.floor(r() * pool.length)]; } while (usedT.indexOf(Rr) >= 0);
+        if (k === 1 && (out[0].R <= 100) === (Rr <= 100)) Rr = out[0].R <= 100 ? 180 : 65;
+        var okT = Rr * 0.5 <= 50;
+        out.push({ qcm: true, R: Rr, q: "Terre mesurée à " + Rr + " Ω. L'AGCP 500 mA suffit-il à assurer la protection ?", options: ["Oui", "Non"], answer: okT ? 0 : 1,
+          explain: Rr + " × 0,5 = " + fr(Rr * 0.5) + " V " + (okT ? "≤ 50 V : oui (le 30 mA reste exigé pour les personnes)." : "> 50 V : non → 30 mA sur tous les circuits et améliorer la terre.") });
       } else if (ex.gen === "idcal") {
         var C, CE, oth, I, tries = 0;
         do {
@@ -284,7 +321,7 @@
   function header(sub) {
     return h("header", { class: "top" }, [
       h("a", { href: "#/", class: "brand", "aria-label": "Accueil du TP" }, [h("img", { src: D.logo || "logo_greta.png", alt: "GRETA GIP FIPAN" })]),
-      h("div", { class: "toptxt" }, [h("strong", null, ["CAP Électricien"]), h("span", null, [sub || D.sousTitre])])
+      h("div", { class: "toptxt" }, [h("strong", null, [D.formation || "CAP Électricien"]), h("span", null, [sub || D.sousTitre])])
     ]);
   }
   function home() {
@@ -363,6 +400,32 @@
     }); });
     return L.join("\n");
   }
+  /* ---------- envoi du bilan vers le Google Sheets du formateur ---------- */
+  var SHEET_URL = (window.TPCONFIG && window.TPCONFIG.sheetUrl) || "";
+  function bilanData() {
+    var tot = 0, mx = 0, all = true, ms = D.missions.map(function (m) { var s = missionStats(m); tot += s.score; mx += s.max; if (s.done < s.total) all = false;
+      return { num: m.num, titre: m.titre, score: s.score, max: s.max, faits: s.done, total: s.total }; });
+    return { tp: D.num || 1, code: D.code || "", groupe: D.groupe || "CAP", titre: D.titre, nom: S.name || "(nom non renseigné)", date: new Date().toLocaleString("fr-FR"), score: tot, max: mx,
+      pct: mx ? Math.round(100 * tot / mx) : 0, complet: all, missions: ms, texte: bilanText(), appareil: String(S.seed), envoi: (S.sent || []).length + 1 };
+  }
+  function sendBilan(btn, out) {
+    if (!S.name) { out.className = "msg"; out.textContent = "Écris d'abord ton prénom et ton nom sur la page d'accueil."; return; }
+    btn.disabled = true; out.className = "msg info"; out.textContent = "Envoi en cours…";
+    var body = JSON.stringify(bilanData());
+    var done, fail;
+    done = function (txt) { S.sent = (S.sent || []).concat([new Date().toLocaleString("fr-FR")]); save(); btn.disabled = false; out.className = "msg ok"; out.textContent = txt; };
+    fail = function () { btn.disabled = false; out.className = "msg"; out.textContent = "Échec de l'envoi (pas d'internet ?). Réessaie, ou utilise « Copier le bilan »."; };
+    var finished = false, timer = setTimeout(function () { fail(); }, 20000);
+    var ok0 = done, ko0 = fail;
+    done = function (t) { if (finished) return; finished = true; clearTimeout(timer); ok0(t); };
+    fail = function () { if (finished) return; finished = true; clearTimeout(timer); ko0(); };
+    fetch(SHEET_URL, { method: "POST", body: body }).then(function (r) { return r.json(); }).then(function (j) {
+      if (j && j.ok) done("Bilan envoyé à ton formateur le " + new Date().toLocaleString("fr-FR") + "."); else fail();
+    }).catch(function () {
+      if (!navigator.onLine) return fail();
+      fetch(SHEET_URL, { method: "POST", mode: "no-cors", body: body }).then(function () { done("Bilan envoyé à ton formateur. Préviens-le pour qu'il vérifie qu'il l'a bien reçu."); }).catch(fail);
+    });
+  }
   function bilan() {
     app.innerHTML = "";
     app.appendChild(header("Bilan"));
@@ -383,9 +446,15 @@
     main.appendChild(h("section", { class: "card" }, [tb, allDone ? null : h("p", { class: "hint warn" }, ["Certaines missions ne sont pas terminées."])]));
     var pre = h("pre", { class: "btxt" }, [bilanText()]);
     main.appendChild(h("section", { class: "card" }, [h("h2", null, ["Réponses rédigées et tâches"]), pre]));
+    if (SHEET_URL) {
+      var sout = h("p", { class: "msg" + (S.sent && S.sent.length ? " ok" : ""), role: "status", "aria-live": "polite" }, [S.sent && S.sent.length ? "Déjà envoyé le " + S.sent[S.sent.length - 1] + ". Tu peux renvoyer si tu as continué le TP." : ""]);
+      var sbtn = h("button", { type: "button", class: "primary big", onclick: function () { sendBilan(sbtn, sout); } }, ["Envoyer à mon formateur"]);
+      main.appendChild(h("section", { class: "card send" }, [h("h2", null, ["Rendre mon travail"]),
+        h("p", { class: "hint" }, [allDone ? "Toutes les missions sont terminées : envoie ton bilan." : "Termine d'abord toutes les missions, puis envoie ton bilan."]), sbtn, sout]));
+    }
     var info = h("p", { class: "msg", role: "status", "aria-live": "polite" });
     var acts = h("div", { class: "actions wrapbtn" }, [
-      h("button", { type: "button", class: "primary", onclick: function () { window.print(); } }, ["Imprimer / PDF"]),
+      h("button", { type: "button", class: SHEET_URL ? "" : "primary", onclick: function () { window.print(); } }, ["Imprimer / PDF"]),
       h("button", { type: "button", onclick: function () { var t = bilanText(); if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { info.textContent = "Bilan copié : colle-le dans un mail ou un message."; }); } }, ["Copier le bilan"]),
       h("button", { type: "button", onclick: function () { var b = new Blob([bilanText()], { type: "text/plain;charset=utf-8" }); var a = h("a", { href: URL.createObjectURL(b), download: "bilan_TP_documentaire_" + (D.num || 1) + "_" + (S.name || "eleve").replace(/\s+/g, "_") + ".txt" }); document.body.appendChild(a); a.click(); a.remove(); } }, ["Télécharger (.txt)"]),
       navigator.share ? h("button", { type: "button", onclick: function () { navigator.share({ title: "Bilan TP documentaire", text: bilanText() }).catch(function () {}); } }, ["Partager"]) : null,
@@ -402,7 +471,7 @@
         h("p", { class: "msg", id: "rmsg", role: "status", "aria-live": "polite" })])]));
     app.appendChild(main); app.appendChild(footer()); window.scrollTo(0, 0);
   }
-  function footer() { return h("footer", { class: "foot" }, ["GRETA GIP FIPAN — Académie de Nice · CAP Électricien · TP documentaire n°" + (D.num || 1)]); }
+  function footer() { return h("footer", { class: "foot" }, ["GRETA GIP FIPAN — Académie de Nice · " + (D.formation || "CAP Électricien") + " · " + (D.code ? "TP documentaire " + D.code : "TP documentaire n°" + (D.num || 1))]); }
 
   function route() {
     var r = (location.hash || "#/").slice(2);

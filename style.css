@@ -114,3 +114,6 @@ button:disabled{opacity:.6;cursor:default}
   .card,.ex{border-color:#bbb}
   .btxt{max-height:none;background:#fff;border:1px solid #ccc}
 }
+.msg.ok{color:var(--good);font-weight:600}.msg.info{color:var(--grey)}
+.send .big{font-size:17px;padding:12px 22px;margin:4px 0 10px}
+@media print{.send{display:none}}
